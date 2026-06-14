@@ -74,6 +74,30 @@ class Database
         return $this->pdo->lastInsertId();
     }
 
+    /**
+     * Get list of tables in database
+     */
+    public function getTables(): array
+    {
+        $sql = "SHOW TABLES";
+        $stmt = $this->pdo->query($sql);
+        $tables = [];
+        while ($row = $stmt->fetch(PDO::FETCH_NUM)) {
+            $tables[] = $row[0];
+        }
+        return $tables;
+    }
+
+    /**
+     * Get column structure for a table
+     */
+    public function getTableColumns(string $table): array
+    {
+        $sql = "DESCRIBE `{$table}`";
+        $stmt = $this->pdo->query($sql);
+        return $stmt->fetchAll();
+    }
+
     public function beginTransaction(): bool
     {
         return $this->pdo->beginTransaction();

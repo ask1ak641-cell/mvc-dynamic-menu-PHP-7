@@ -57,7 +57,7 @@ class CrudGenerator
      * [
      *   'name'     => 'nama_kolom',
      *   'label'    => 'Label Kolom',
-     *   'type'     => 'text|number|email|textarea|select|date|file',
+     *   'type'     => 'text|number|email|textarea|select|date|file|toggle|checkbox|time|datetime',
      *   'required' => true/false,
      *   'options'  => [['value'=>'','label'=>'Pilih']] // untuk type select
      * ]
@@ -73,6 +73,72 @@ class CrudGenerator
                 $this->displayColumns[] = $f['name'];
             }
         }
+        return $this;
+    }
+
+    /**
+     * Auto-detect fields from database table structure
+     */
+    public function setFieldsFromTable(string $table)
+    {
+        $db = Database::getInstance();
+        $columns = $db->getTableColumns($table);
+        
+        $fields = [];
+        foreach ($columns as $col) {
+            $fieldName = $col['Field'];
+            if ($fieldName === 'id') continue; // Skip primary key
+            
+            $fieldType = $col['Type'];
+            $nullable = $col['Null'] === 'YES';
+            $default = $col['Default'];
+            
+            // Detect field type and UI type
+            $uiType = 'text';
+            $label = ucwords(str_replace('_', ' ', $fieldName));
+            
+            // Check for tinyint(1) which is typically boolean/toggle
+            if (stripos($fieldType, 'tinyint(1)') !== false || stripos($fieldType, 'boolean') !== false) {
+                $uiType = 'toggle';
+            } elseif (stripos($fieldType, 'int') !== false) {
+                $uiType = 'number';
+            } elseif (stripos($fieldType, 'decimal') !== false || stripos($fieldType, 'float') !== false || stripos($fieldType, 'double') !== false) {
+                $uiType = 'number';
+            } elseif (stripos($fieldType, 'text') !== false) {
+                $uiType = 'textarea';
+            } elseif (stripos($fieldType, 'datetime') !== false || stripos($fieldType, 'timestamp') !== false) {
+                $uiType = 'datetime';
+            } elseif (stripos($fieldType, 'date') !== false) {
+                $uiType = 'date';
+            } elseif (stripos($fieldType, 'time') !== false && stripos($fieldType, 'date') === false) {
+                $uiType = 'time';
+            } elseif (stripos($fieldType, 'enum') !== false || stripos($fieldType, 'set') !== false) {
+                $uiType = 'select';
+                // Extract enum values
+                preg_match_all("/'([^']+)'/", $fieldType, $matches);
+                $options = [];
+                foreach ($matches[1] as $val) {
+                    $options[] = ['value' => $val, 'label' => $val];
+                }
+                $fields[] = [
+                    'name' => $fieldName,
+                    'label' => $label,
+                    'type' => $uiType,
+                    'required' => !$nullable,
+                    'options' => $options,
+                ];
+                continue;
+            }
+            
+            $fields[] = [
+                'name' => $fieldName,
+                'label' => $label,
+                'type' => $uiType,
+                'required' => !$nullable,
+            ];
+        }
+        
+        $this->fields = $fields;
         return $this;
     }
 
@@ -589,10 +655,49 @@ HTML;
                     $html .= "                            </select>\n";
                     break;
 
+                case 'toggle':
+                    $checkedExpr = "(bool)({$value})";
+                    $html .= <<<HTML
+                            <label class=\"switch-toggle\">
+                                <input type="checkbox\" name="{$name}\" id="{$name}\" value="1\" {$required} <?= {$checkedExpr} ? 'checked' : '' ?> class=\"toggle-input\">
+                                <span class=\"slider round\"></span>
+                            </label>
+                            <small class=\"text-muted d-block mt-1\">Geser untuk mengubah status</small>
+
+HTML;
+                    break;
+
+                case 'checkbox':
+                    $checkedExpr = "(bool)({$value})";
+                    $html .= <<<HTML
+                            <div class=\"custom-control custom-checkbox\">
+                                <input type=\"checkbox\" name="{$name}\" id="{$name}\" value="1\" {$required} <?= {$checkedExpr} ? 'checked' : '' ?> class=\"custom-control-input\">
+                                <label class=\"custom-control-label\" for="{$name}\">Aktifkan</label>
+                            </div>
+
+HTML;
+                    break;
+
+                case 'time':
+                    $html .= <<<HTML
+                            <input type="time\" name="{$name}\" id="{$name}\" class="form-control\"
+                                   value="<?= htmlspecialchars({$value}) ?>\" {$required}>
+
+HTML;
+                    break;
+
+                case 'datetime':
+                    $html .= <<<HTML
+                            <input type="datetime-local\" name="{$name}\" id="{$name}\" class="form-control\"
+                                   value="<?= htmlspecialchars({$value}) ?>\" {$required}>
+
+HTML;
+                    break;
+
                 default: // text, number, email, date, etc.
                     $html .= <<<HTML
                             <input type="{$type}" name="{$name}" id="{$name}" class="form-control"
-                                   value="<?= htmlspecialchars({$value}) ?>" {$required}>
+                                   value="<?= htmlspecialchars({$value}) ?>\" {$required}>
 
 HTML;
             }

@@ -19,7 +19,7 @@ $pageTitle = $title ?? 'Tambah Menu';
 
 <div class="content">
     <div class="container-fluid">
-        <form method="POST" action="<?= URL::base('/menu/store') ?>">
+        <form method="POST" action="<?= URL::base('/menu/store') ?>" id="menuForm">
             <?= Security::csrfField() ?>
             <div class="row">
                 <div class="col-lg-8">
@@ -43,6 +43,52 @@ $pageTitle = $title ?? 'Tambah Menu';
                                     </div>
                                 </div>
                             </div>
+                            
+                            <!-- CRUD Generation Option -->
+                            <div class="form-group mt-3">
+                                <label class="font-weight-bold"><i class="fas fa-cogs mr-2"></i>Tipe Pembuatan Halaman</label>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="custom-control custom-radio">
+                                            <input type="radio" name="page_type" id="pageTypeManual" value="manual" class="custom-control-input" checked onchange="togglePageType()">
+                                            <label class="custom-control-label" for="pageTypeManual">
+                                                <i class="fas fa-book mr-1"></i> Manual (Tutorial)
+                                            </label>
+                                        </div>
+                                        <small class="text-muted d-block mt-1">Halaman kosong dengan panduan lengkap untuk kustomisasi manual</small>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="custom-control custom-radio">
+                                            <input type="radio" name="page_type" id="pageTypeCrud" value="crud" class="custom-control-input" onchange="togglePageType()">
+                                            <label class="custom-control-label" for="pageTypeCrud">
+                                                <i class="fas fa-database mr-1"></i> CRUD Otomatis
+                                            </label>
+                                        </div>
+                                        <small class="text-muted d-block mt-1">Generate CRUD lengkap dari tabel database yang dipilih</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Table Selection (only shown when CRUD is selected) -->
+                            <div class="form-group mt-3" id="tableSelectionGroup" style="display:none;">
+                                <label><i class="fas fa-table mr-2"></i>Pilih Tabel Database</label>
+                                <select name="table_name" id="tableSelect" class="form-control">
+                                    <option value="">-- Pilih Tabel --</option>
+                                    <?php if (!empty($tables)): ?>
+                                        <?php foreach ($tables as $tbl): ?>
+                                            <option value="<?= htmlspecialchars($tbl) ?>"><?= htmlspecialchars($tbl) ?></option>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <option value="" disabled>Tidak ada tabel user tersedia</option>
+                                    <?php endif; ?>
+                                </select>
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle mr-1"></i>
+                                    Field akan otomatis terdeteksi (text, number, date, time, datetime, toggle, select/enum)
+                                </small>
+                            </div>
+                            
+                            <input type="hidden" name="use_crud" id="useCrudInput" value="0">
                             <div class="row align-items-end">
                                 <div class="col-md-5">
                                     <div class="form-group">
@@ -231,8 +277,40 @@ $pageTitle = $title ?? 'Tambah Menu';
 </style>
 
 <script>
+// Toggle page type selection
+function togglePageType() {
+    var isCrud = document.getElementById('pageTypeCrud').checked;
+    var tableGroup = document.getElementById('tableSelectionGroup');
+    var useCrudInput = document.getElementById('useCrudInput');
+    var tableSelect = document.getElementById('tableSelect');
+    
+    if (isCrud) {
+        tableGroup.style.display = 'block';
+        useCrudInput.value = '1';
+        tableSelect.setAttribute('required', 'required');
+    } else {
+        tableGroup.style.display = 'none';
+        useCrudInput.value = '0';
+        tableSelect.removeAttribute('required');
+        tableSelect.value = '';
+    }
+}
+
 (function w() { if (typeof jQuery === 'undefined') { setTimeout(w, 50); return; }
 $(function() {
+    // Form validation for CRUD mode
+    $('#menuForm').on('submit', function(e) {
+        var isCrud = $('#pageTypeCrud').is(':checked');
+        var tableVal = $('#tableSelect').val();
+        
+        if (isCrud && !tableVal) {
+            e.preventDefault();
+            alert('Silakan pilih tabel database untuk generate CRUD!');
+            $('#tableSelect').focus();
+            return false;
+        }
+    });
+    
     $('#modalIconGrid').on('click', '.modal-icon-item', function() {
         var icon = $(this).data('icon');
         $('#icon_input').val(icon);

@@ -363,13 +363,49 @@ class MenuController extends BaseController
             throw new \Exception('Nama modul tidak valid.');
         }
 
-        // Use CrudGenerator to create full CRUD
+        // Use CrudGenerator to create full CRUD with all routes
         $gen = new CrudGenerator();
         $gen->setName($name)
             ->setTable($table)
             ->setLabel(ucwords(str_replace('_', ' ', $name)))
             ->setFieldsFromTable($table)
             ->generate();
+        
+        // Add routes for the generated CRUD
+        $this->appendRoute($name);
+        $this->appendCrudRoutes($name);
+    }
+    
+    /**
+     * Append CRUD routes (create, store, edit, update, delete) to index.php
+     */
+    private function appendCrudRoutes($name)
+    {
+        $f = PUBLIC_DIR . '/index.php';
+        if (!file_exists($f) || !is_writable($f)) return;
+
+        // Validasi nama modul
+        if (!preg_match('/^[a-zA-Z][a-zA-Z0-9_]*$/', $name)) return;
+
+        $content = file_get_contents($f);
+        $cn = ucfirst($name);
+        
+        // Check if routes already exist
+        if (strpos($content, "'/{$name}/create'") !== false) {
+            return; // Routes already added
+        }
+        
+        $route = "\n// ─── CRUD Routes: {$cn} ──────────────────────\n";
+        $route .= "\$router->get('/{$name}/create', '{$cn}Controller@create');\n";
+        $route .= "\$router->post('/{$name}/store', '{$cn}Controller@store');\n";
+        $route .= "\$router->get('/{$name}/edit/{id}', '{$cn}Controller@edit');\n";
+        $route .= "\$router->post('/{$name}/edit/{id}', '{$cn}Controller@update');\n";
+        $route .= "\$router->get('/{$name}/delete/{id}', '{$cn}Controller@delete');\n";
+        
+        $marker = '// ─── Jalankan Router';
+        if (strpos($content, $marker) !== false) {
+            file_put_contents($f, str_replace($marker, $route . $marker, $content));
+        }
     }
 
     private function deleteDir($dir)

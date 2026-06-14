@@ -97,21 +97,21 @@ class CrudGenerator
             $uiType = 'text';
             $label = ucwords(str_replace('_', ' ', $fieldName));
             
-            if (stripos($fieldType, 'int') !== false) {
+            // Check for tinyint(1) which is typically boolean/toggle
+            if (stripos($fieldType, 'tinyint(1)') !== false || stripos($fieldType, 'boolean') !== false) {
+                $uiType = 'toggle';
+            } elseif (stripos($fieldType, 'int') !== false) {
                 $uiType = 'number';
             } elseif (stripos($fieldType, 'decimal') !== false || stripos($fieldType, 'float') !== false || stripos($fieldType, 'double') !== false) {
                 $uiType = 'number';
             } elseif (stripos($fieldType, 'text') !== false) {
                 $uiType = 'textarea';
-            } elseif (stripos($fieldType, 'date') !== false && stripos($fieldType, 'time') === false) {
-                $uiType = 'date';
             } elseif (stripos($fieldType, 'datetime') !== false || stripos($fieldType, 'timestamp') !== false) {
                 $uiType = 'datetime';
-            } elseif (stripos($fieldType, 'time') !== false) {
+            } elseif (stripos($fieldType, 'date') !== false) {
+                $uiType = 'date';
+            } elseif (stripos($fieldType, 'time') !== false && stripos($fieldType, 'date') === false) {
                 $uiType = 'time';
-            } elseif (stripos($fieldType, 'tinyint') !== false) {
-                // Check if it's a boolean/toggle field
-                $uiType = 'toggle';
             } elseif (stripos($fieldType, 'enum') !== false || stripos($fieldType, 'set') !== false) {
                 $uiType = 'select';
                 // Extract enum values
